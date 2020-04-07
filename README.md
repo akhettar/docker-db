@@ -1,5 +1,5 @@
 # Docker Test
-![Master CI](https://github.com/akhettar/docker-test/workflows/Master%20CI/badge.svg)
+![Master CI](https://github.com/akhettar/docker-test/workflows/Master%20CI/badge.svg?branch=master)
 
 ![hard working man](pushing-cart.png)
 
