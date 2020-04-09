@@ -143,8 +143,8 @@ func setupContainer(image string, port int, timeout time.Duration,
 }
 
 const (
-	mongoImage       = "library/mongo"
-	mysqlImage       = "library/mysql"
+	mongoImage       = "mongo"
+	mysqlImage       = "mysql"
 	MySQLUsername    = "root"
 	MySQLPassword    = "root"
 	postgresImage    = "library/postgres"
@@ -152,31 +152,22 @@ const (
 	PostgresPassword = "docker" // set up by the dockerfile of postgresImage
 )
 
-// SetupMongoContainer sets up a real MongoDB instance for testing purposes,
-// using a Docker container. It returns the container ID and its IP address,
-// or makes the test fail on error.
-// Currently using https://hub.docker.com/_/mongo/
-func SetupMongoContainer() (c ContainerID, ip string) {
+// StartMongoContainer
+func StartMongoContainer() (c ContainerID, ip string) {
 	return setupContainer(mongoImage, 27017, 10*time.Second, func() (string, error) {
 		return run("-d", "-p", "27017:27017", mongoImage)
 	})
 }
 
-// SetupMySQLContainer sets up a real MySQL instance for testing purposes,
-// using a Docker container. It returns the container ID and its IP address,
-// or makes the test fail on error.
-// Currently using https://hub.docker.com/_/mysql/
-func SetupMySQLContainer(dbname string) (c ContainerID, ip string) {
+// StartMySQLContainer sets up a real MySQL instance for testing purposes,
+func StartMySQLContainer(dbname string) (c ContainerID, ip string) {
 	return setupContainer(mysqlImage, 3306, 10*time.Second, func() (string, error) {
 		return run("-d", "-e", "MYSQL_ROOT_PASSWORD="+MySQLPassword, "-e", "MYSQL_DATABASE="+dbname, mysqlImage)
 	})
 }
 
-// SetupPostgreSQLContainer sets up a real PostgreSQL instance for testing purposes,
-// using a Docker container. It returns the container ID and its IP address,
-// or makes the test fail on error.
-// Currently using https://hub.docker.com/_/postgres/
-func SetupPostgreSQLContainer(dbname string) (c ContainerID, ip string) {
+// StartPostgreSQLContainer sets up a real PostgreSQL instance for testing purposes,
+func StartPostgreSQLContainer(dbname string) (c ContainerID, ip string) {
 	c, ip = setupContainer(postgresImage, 5432, 15*time.Second, func() (string, error) {
 		return run("-d", postgresImage)
 	})
