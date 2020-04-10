@@ -26,7 +26,7 @@ const (
 
 /// runChecks checks all the conditions for running a docker container
 // based on image.
-func runChecks(image string) bool {
+func runChecks(image string) {
 	if testing.Short() {
 		log.Println("skipping in short mode")
 	}
