@@ -14,24 +14,41 @@ import (
 	"camlistore.org/pkg/netutil"
 )
 
-/// runLongTest checks all the conditions for running a docker container
+const (
+	mongoImage       = "mongo"
+	mysqlImage       = "mysql"
+	MySQLUsername    = "root"
+	MySQLPassword    = "root"
+	postgresImage    = "postgres"
+	PostgresUsername = "docker" // set up by the dockerfile of postgresImage
+	PostgresPassword = "docker" // set up by the dockerfile of postgresImage
+)
+
+/// runChecks checks all the conditions for running a docker container
 // based on image.
-func runLongTest(image string) {
+func runChecks(image string) bool {
 	if testing.Short() {
 		log.Println("skipping in short mode")
 	}
 	if !haveDocker() {
 		log.Fatal("'docker' command not found")
 	}
-	if ok, err := haveImage(image); !ok || err != nil {
-		if err != nil {
-			log.Println("Error running docker to check for %s: %v", image, err)
-		}
+
+	ok, err := haveImage(image)
+	if err != nil {
+		log.Println("Error running docker to check for %s: %v", image, err)
+	}
+
+	if !ok {
 		log.Printf("Pulling docker image %s ...", image)
 		if err := Pull(image); err != nil {
 			log.Println("Error pulling %s: %v", image, err)
 		}
 	}
+
+	// check if teh container is running
+	stopIfContainerIsRunning(fmt.Sprintf("%s_%s", image, "container"))
+
 }
 
 // haveDocker returns whether the "docker" command was found.
@@ -46,6 +63,23 @@ func haveImage(name string) (ok bool, err error) {
 		return
 	}
 	return bytes.Contains(out, []byte(name)), nil
+}
+
+func stopIfContainerIsRunning(name string) {
+	if isContainerRunning(name) {
+		_, err := exec.Command("docker", "container", "stop", name).Output()
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func isContainerRunning(name string) bool {
+	out, err := exec.Command("docker", "container", "inspect", name).Output()
+	if err != nil {
+		return false
+	}
+	return bytes.Contains(out, []byte(name))
 }
 
 func run(args ...string) (containerID string, err error) {
@@ -127,7 +161,8 @@ func (c ContainerID) lookup(port int, timeout time.Duration) (ip string, err err
 // fail on error.
 func setupContainer(image string, port int, timeout time.Duration,
 	start func() (string, error)) (c ContainerID, ip string) {
-	runLongTest(image)
+
+	runChecks(image)
 
 	containerID, err := start()
 	if err != nil {
@@ -142,20 +177,10 @@ func setupContainer(image string, port int, timeout time.Duration,
 	return
 }
 
-const (
-	mongoImage       = "mongo"
-	mysqlImage       = "mysql"
-	MySQLUsername    = "root"
-	MySQLPassword    = "root"
-	postgresImage    = "library/postgres"
-	PostgresUsername = "docker" // set up by the dockerfile of postgresImage
-	PostgresPassword = "docker" // set up by the dockerfile of postgresImage
-)
-
 // StartMongoContainer
 func StartMongoContainer() (c ContainerID, ip string) {
 	return setupContainer(mongoImage, 27017, 10*time.Second, func() (string, error) {
-		return run("-d", "-p", "27017:27017", mongoImage)
+		return run("-d", "-p", "27017:27017", "--name", fmt.Sprintf("%s_%s", mongoImage, "container"), mongoImage)
 	})
 }
 
