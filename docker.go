@@ -68,6 +68,7 @@ func haveImage(name string) (ok bool, err error) {
 func stopIfContainerIsRunning(name string) {
 	if isContainerRunning(name) {
 		_, err := exec.Command("docker", "container", "stop", name).Output()
+		_, err = exec.Command("docker", "container", "rm", name).Output()
 		if err != nil {
 			panic(err)
 		}
