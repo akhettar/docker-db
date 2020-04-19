@@ -1,6 +1,6 @@
 # Docker Test
 ![Master CI](https://github.com/akhettar/docker-test/workflows/Master%20CI/badge.svg?branch=master)
-[![GoDoc](https://godoc.org/github.com/akhettar/docker-test?)
+![GoDoc](https://godoc.org/github.com/akhettar/docker-test?status.svg)
 
 ![hard working man](pushing-cart.png)
 
