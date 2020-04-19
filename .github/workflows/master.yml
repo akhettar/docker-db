@@ -32,6 +32,6 @@ jobs:
       run: |
         git pull
         export latest="$(git describe --tags `git rev-list --tags --max-count=1`)"
-        curl https://proxy.golang.org/github.com/akhettar/docker-test/$latest.info
+        curl https://proxy.golang.org/github.com/akhettar/docker-test/@v/$latest.info
 
 
