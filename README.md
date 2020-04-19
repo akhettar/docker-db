@@ -3,7 +3,8 @@
 
 ![hard working man](pushing-cart.png)
 
-This is a Go library to run database containers as part of running the integration tests. The following DB are supported
+This is a Go library to run database containers as part of running the integration tests. The following databases are supported:
+
 * MySQL
 * Postgres
 * MongoDB - DocumentDB
