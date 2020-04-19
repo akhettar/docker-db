@@ -27,5 +27,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         WITH_V: true
+    
+    - name: Publish doc to go.dev packages
+      run: curl https://proxy.golang.org/github.com/akhettar/docker-test/@latest 
 
 
