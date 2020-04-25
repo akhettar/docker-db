@@ -23,7 +23,8 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Run the tests
-        run: go test
+      run: |
+        go test
 
     - name: Bump version and push tag
       uses: anothrNick/github-tag-action@1.17.2
