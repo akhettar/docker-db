@@ -11,8 +11,14 @@ This is a Go library to run database containers as part of running the integrati
 * MongoDB - DocumentDB
 
 # How to use
-Below is an example of running Test against MongoDB
 
+## Running Postgres container
+
+An example of running `postgres` container is present in this project. See the following files: 
+* [Integratino test](docker_test.go)
+* [Test fixture](init_test.go)
+
+## Running MongoDB container
 
 `Integration test snipppet`
 
@@ -46,19 +52,16 @@ func TestPublishAppStatus_WithInvalidAppPlatformReturnBadRequestResponse(t *test
 		}
 	}
 }
-
-
 ```
 
-
-In the same packate include a test file with the name: `init_test.go` and include the following
+In the same package include a test file with the name: `init_test.go` and include the following
 
 ```go
 import (
 	"github.com/akhettar/app-features-manager/repository"
 	"context"
 	"flag"
-	"github.com/akhettar/docker-test"
+	dockertdb "github.com/akhettar/docker-db"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
@@ -80,20 +83,13 @@ var (
 // TestFixture wraps all tests with the needed initialized mock DB and fixtures
 // This test runs before other integration test. It starts an instance of mongo db in the background (provided you have mongo
 // installed on the server on which this test will be running) and shuts it down.
-func TestFixture(m *testing.M) {
+func TestMain(m *testing.M) {
 
 	flag.Parse()
+	container := dockertest.StartMongoContainer()
+	log.Printf("running mongo with Ip %s", container.Host())
 
-	var cID dockertest.ContainerID
-
-	// start mongo container only if tests are run locally
-	if os.Getenv(ProfileEnvVar) == "" {
-		cID, _ = dockertest.StartMongoContainer()
-		ip, _ := cID.IP()
-		log.Printf("running mongo with Ip %s", ip)
-	}
-
-	uri := "mongodb://127.0.0.1:27017"
+	uri := fmt.Sprintf("mongodb://%s:%d", container.Host(), container.Port())
 	clientOptions := options.Client().ApplyURI(uri)
 
 	client, err := mongo.Connect(context.TODO(), clientOptions)
@@ -114,7 +110,7 @@ func TestFixture(m *testing.M) {
 	// Run the test suite
 	retCode := m.Run()
 
-	cID.KillRemove()
+	c.Destroy()
 
 	// call with result of m.Run()
 	os.Exit(retCode)
