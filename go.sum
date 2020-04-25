@@ -1,2 +1,4 @@
 camlistore.org v0.0.0-20171230002226-a5a65f0d8b22 h1:VP9VuyosMHmS9zdzd5Co9TJKWPbMTfmtKc/XWctszyQ=
 camlistore.org v0.0.0-20171230002226-a5a65f0d8b22/go.mod h1:mzAP6ICVzPdfO0f3N9hAVWhO7qplHF7mbFhGsGdErTI=
+github.com/lib/pq v1.4.0 h1:TmtCFbH+Aw0AixwyttznSMQDgbR5Yed/Gg6S8Funrhc=
+github.com/lib/pq v1.4.0/go.mod h1:5WUZQaWbwv1U+lTReE5YruASi9Al49XbQIvNi/34Woo=

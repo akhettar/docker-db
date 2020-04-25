@@ -1,13 +1,12 @@
 # Docker Test
-![Master CI](https://github.com/akhettar/docker-test/workflows/Master%20CI/badge.svg?branch=master)
-[![GoDoc](https://godoc.org/github.com/akhettar/docker-test?status.svg)](https://godoc.org/github.com/akhettar/docker-test)
+![Master CI](https://github.com/akhettar/docker-db/workflows/Master%20CI/badge.svg?branch=master)
+[![GoDoc](https://godoc.org/github.com/akhettar/docker-db?status.svg)](https://godoc.org/github.com/akhettar/docker-db)
 
 
 ![hard working man](pushing-cart.png)
 
 This is a Go library to run database containers as part of running the integration tests. The following databases are supported:
 
-* MySQL
 * Postgres
 * MongoDB - DocumentDB
 
@@ -26,7 +25,7 @@ func TestPublishAppStatus_WithInvalidAppPlatformReturnBadRequestResponse(t *test
 		t.Logf("\tWhen Sending Publish App status request to endpoint with unsupported platform value:  \"%s\"", platform)
 		{
 		
-      mockUnleash := test.GetMockUnleashClient(t)
+            mockUnleash := test.GetMockUnleashClient(t)
 			handler := NewAppStatusHandler(Repository, mockUnleash)
 			router := handler.CreateRouter()
 			version := "1.0"

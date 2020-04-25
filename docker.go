@@ -2,53 +2,92 @@ package dockertest
 
 import (
 	"bytes"
+	"camlistore.org/pkg/netutil"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log"
 	"os/exec"
+	"regexp"
 	"strings"
-	"testing"
 	"time"
-
-	"camlistore.org/pkg/netutil"
 )
 
 const (
 	mongoImage       = "mongo"
-	mysqlImage       = "mysql"
-	MySQLUsername    = "root"
-	MySQLPassword    = "root"
 	postgresImage    = "postgres"
-	PostgresUsername = "docker" // set up by the dockerfile of postgresImage
-	PostgresPassword = "docker" // set up by the dockerfile of postgresImage
+	PostgresUsername = "docker"
+	PostgresPassword = "docker"
+	IPAddressRegex   = "(.*IPAddress\"\\: \")(.*)(\",)"
+	VolumeRegex      = "(volumes\\/)(.*)(\\/)"
 )
 
-/// runChecks checks all the conditions for running a docker container
-// based on image.
-func runChecks(image string) {
-	if testing.Short() {
-		log.Println("skipping in short mode")
-	}
+type Container struct {
+	name     string
+	id       string
+	host     string
+	port     int
+	userName string
+	password string
+	volume   string
+}
+
+// Host container defaulting to local host
+func (c Container) Host() string {
+	return c.host
+}
+
+// Port
+func (c Container) Port() int {
+	return c.port
+}
+
+// Username DB
+func (c Container) Username() string {
+	return c.userName
+}
+
+// Password DB
+func (c Container) Password() string {
+	return c.password
+}
+
+// Kill the container
+func kill(name string) error {
+	return exec.Command("docker", "kill", name).Run()
+}
+
+// Remove runs "docker rm" on the container
+func remove(name string) error {
+	return exec.Command("docker", "rm", name).Run()
+}
+
+// delete the volume of the container
+func deleteVolume(volume string) error {
+	return exec.Command("docker", "volume", "rm", volume).Run()
+}
+
+// check all the conditions for running a docker container based on image.
+func check(image string) {
+
 	if !haveDocker() {
 		log.Fatal("'docker' command not found")
 	}
 
 	ok, err := haveImage(image)
 	if err != nil {
-		log.Println("Error running docker to check for %s: %v", image, err)
+		log.Printf("error running docker to check for %s: %v", image, err)
 	}
 
 	if !ok {
 		log.Printf("Pulling docker image %s ...", image)
 		if err := Pull(image); err != nil {
-			log.Println("Error pulling %s: %v", image, err)
+			log.Printf("error pulling %s: %v", image, err)
 		}
 	}
 
 	// check if teh container is running
 	stopIfContainerIsRunning(fmt.Sprintf("%s_%s", image, "container"))
-
 }
 
 // haveDocker returns whether the "docker" command was found.
@@ -67,39 +106,63 @@ func haveImage(name string) (ok bool, err error) {
 
 func stopIfContainerIsRunning(name string) {
 	if isContainerRunning(name) {
-		_, err := exec.Command("docker", "container", "stop", name).Output()
-		_, err = exec.Command("docker", "container", "rm", name).Output()
-		if err != nil {
+		if err := kill(name); err != nil {
 			panic(err)
 		}
+		if err := remove(name); err != nil {
+			panic(err)
+		}
+	} else {
+		remove(name)
 	}
 }
 
 func isContainerRunning(name string) bool {
-	out, err := exec.Command("docker", "container", "inspect", name).Output()
-	if err != nil {
-		return false
+	if ip, _, _ := inspectContainer(name); ip != "" {
+		return true
 	}
-	return bytes.Contains(out, []byte(name))
+	return false
 }
 
-func run(args ...string) (containerID string, err error) {
+// run the image
+func run(args ...string) (string, error) {
 	cmd := exec.Command("docker", append([]string{"run"}, args...)...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err = cmd.Run(); err != nil {
+	if err := cmd.Run(); err != nil {
 		err = fmt.Errorf("%v%v", stderr.String(), err)
-		return
+		return "", err
 	}
-	containerID = strings.TrimSpace(stdout.String())
-	if containerID == "" {
-		return "", errors.New("unexpected empty output from `docker run`")
+	if containerID := strings.TrimSpace(stdout.String()); containerID != "" {
+		return containerID, nil
 	}
-	return
+	return "", errors.New("unexpected empty output from `docker run`")
 }
 
-func KillContainer(container string) error {
-	return exec.Command("docker", "kill", container).Run()
+// Run inspect container command and returns container details , ip  and volume
+func inspectContainer(containerID string) (string, string, error) {
+	cmd := exec.Command("docker", "inspect", containerID)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Run(); err != nil {
+		err = fmt.Errorf("%v%v", stderr.String(), err)
+		return "", "", err
+	}
+	ip := regexp.MustCompile(IPAddressRegex).FindStringSubmatch(stdout.String())[2]
+	volume := regexp.MustCompile(VolumeRegex).FindStringSubmatch(stdout.String())[2]
+	return ip, volume, nil
+}
+
+func inspectLogs(id string, text string) bool {
+	cmd := exec.Command("docker", "logs", id)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Run(); err != nil {
+		err = fmt.Errorf("%v%v", stderr.String(), err)
+		return false
+	}
+	val := stdout.String()
+	return strings.Contains(val, text)
 }
 
 // Pull retrieves the docker image with 'docker pull'.
@@ -111,113 +174,113 @@ func Pull(image string) error {
 	return err
 }
 
-// IP returns the IP address of the container.
-func IP(containerID string) (string, error) {
-	return "127.0.0.1", nil
-}
-
-type ContainerID string
-
-func (c ContainerID) IP() (string, error) {
-	return IP(string(c))
-}
-
-func (c ContainerID) Kill() error {
-	return KillContainer(string(c))
-}
-
-// Remove runs "docker rm" on the container
-func (c ContainerID) Remove() error {
-	return exec.Command("docker", "rm", string(c)).Run()
-}
-
-// KillRemove calls Kill on the container, and then Remove if there was
-// no error. It logs any error to t.
-func (c ContainerID) KillRemove() {
-	if err := c.Kill(); err != nil {
+// Destroy stop and remove the container
+func (c Container) Destroy() {
+	if err := kill(c.name); err != nil {
 		log.Println(err)
 		return
 	}
-	if err := c.Remove(); err != nil {
+	if err := remove(c.name); err != nil {
+		log.Println(err)
+	}
+
+	if err := deleteVolume(c.volume); err != nil {
 		log.Println(err)
 	}
 }
 
-// lookup retrieves the ip address of the container, and tries to reach
+// lookup tries to reach
 // before timeout the tcp address at this ip and given port.
-func (c ContainerID) lookup(port int, timeout time.Duration) (ip string, err error) {
-	ip, err = c.IP()
-	if err != nil {
-		err = fmt.Errorf("error getting IP: %v", err)
-		return
-	}
-	addr := fmt.Sprintf("%s:%d", ip, port)
-	err = netutil.AwaitReachable(addr, timeout)
-	return
+func lookup(port int, host string, timeout time.Duration, id string) error {
+	addr := fmt.Sprintf("%s:%d", host, port)
+
+	return netutil.AwaitReachable(addr, timeout)
 }
 
 // setupContainer sets up a container, using the start function to run the given image.
-// It also looks up the IP address of the container, and tests this address with the given
-// port and timeout. It returns the container ID and its IP address, or makes the test
-// fail on error.
 func setupContainer(image string, port int, timeout time.Duration,
-	start func() (string, error)) (c ContainerID, ip string) {
+	start func() (string, error)) Container {
 
-	runChecks(image)
+	// run basic check on the presence of docker command, if the container is running or not.
+	check(image)
+	name := fmt.Sprintf("%s_%s", image, "container")
 
+	// start the image
 	containerID, err := start()
+	c := Container{id: containerID, name: name, host: "127.0.0.1"}
+
+	err = lookup(port, "127.0.0.1", timeout, containerID)
 	if err != nil {
-		log.Fatalf("docker run: %v", err)
-	}
-	c = ContainerID(containerID)
-	ip, err = c.lookup(port, timeout)
-	if err != nil {
-		c.KillRemove()
+		c.Destroy()
 		log.Printf("Container %v setup failed: %v", c, err)
 	}
-	return
+	return c
 }
 
 // StartMongoContainer
-func StartMongoContainer() (c ContainerID, ip string) {
-	return setupContainer(mongoImage, 27017, 10*time.Second, func() (string, error) {
-		return run("-d", "-p", "27017:27017", "--name", fmt.Sprintf("%s_%s", mongoImage, "container"), mongoImage)
+func StartMongoContainer() Container {
+	name := fmt.Sprintf("%s_%s", mongoImage, "container")
+	c := setupContainer(mongoImage, 27017, 10*time.Second, func() (string, error) {
+		return run("-d", "-p", "27017:27017", "--name", name, mongoImage)
+	})
+	time.Sleep(time.Second * 5)
+	c.name = name
+	c.port = 27017
+	return c
+}
+
+func StartPostgresContainerWithInitialisationScript(dbname, schema string) Container {
+	name := fmt.Sprintf("%s_%s", postgresImage, "container")
+	port := 5432
+	return startPostgres(dbname, port, func() (s string, e error) {
+		return run("-d", "--name", name, "-e", "POSTGRES_PASSWORD="+PostgresPassword,
+			"-e", "POSTGRES_USER="+PostgresUsername, "-e", "POSTGRES_DB="+dbname,
+			"-v", fmt.Sprintf("%s:/docker-entrypoint-initdb.d/initialise_db.sql", schema),
+			"-p", fmt.Sprintf("%d:%d", port, port), postgresImage)
 	})
 }
 
-// StartMySQLContainer sets up a real MySQL instance for testing purposes,
-func StartMySQLContainer(dbname string) (c ContainerID, ip string) {
-	return setupContainer(mysqlImage, 3306, 10*time.Second, func() (string, error) {
-		return run("-d", "-e", "MYSQL_ROOT_PASSWORD="+MySQLPassword, "-e", "MYSQL_DATABASE="+dbname, mysqlImage)
+func StartPostgresContainer(dbname string) Container {
+	name := fmt.Sprintf("%s_%s", postgresImage, "container")
+	port := 5432
+	return startPostgres(dbname, port, func() (s string, e error) {
+		return run("-d", "--name", name, "-e", "POSTGRES_PASSWORD="+PostgresPassword,
+			"-e", "POSTGRES_USER="+PostgresUsername, "-e", "POSTGRES_DB="+dbname,
+			"-p", fmt.Sprintf("%d:%d", port, port), postgresImage)
 	})
 }
 
-// StartPostgreSQLContainer sets up a real PostgreSQL instance for testing purposes,
-func StartPostgreSQLContainer(dbname string) (c ContainerID, ip string) {
-	c, ip = setupContainer(postgresImage, 5432, 15*time.Second, func() (string, error) {
-		return run("-d", postgresImage)
-	})
-	cleanupAndDie := func(err error) {
-		c.KillRemove()
+// starts postgres container
+func startPostgres(dbname string, port int, r func() (string, error)) Container {
+	name := fmt.Sprintf("%s_%s", postgresImage, "container")
+
+	c := setupContainer(postgresImage, port, 100*time.Second, r)
+
+	destroy := func(err error) {
+		c.Destroy()
 		log.Fatal(err)
 	}
+	connectTestDb := dbname + "_" + "test"
 	rootdb, err := sql.Open("postgres",
-		fmt.Sprintf("user=%s password=%s host=%s dbname=postgres sslmode=disable", PostgresUsername, PostgresPassword, ip))
+		fmt.Sprintf("user=%s password=%s host=%s dbname=postgres sslmode=disable", PostgresUsername, PostgresPassword, c.host))
 	if err != nil {
-		cleanupAndDie(fmt.Errorf("Could not open postgres rootdb: %v", err))
+		destroy(fmt.Errorf("Could not open postgres rootdb: %v", err))
 	}
-	if _, err := sqlExecRetry(rootdb,
-		"CREATE DATABASE "+dbname+" LC_COLLATE = 'C' TEMPLATE = template0",
-		50); err != nil {
-		cleanupAndDie(fmt.Errorf("Could not create database %v: %v", dbname, err))
+
+	if _, err := sqlExecRetry(rootdb, "CREATE DATABASE "+dbname+"_"+"test"+" LC_COLLATE = 'C' TEMPLATE = template0", 50); err != nil {
+		destroy(fmt.Errorf("Could not create database %v: %v", connectTestDb, err))
 	}
-	return
+
+	_, volume, _ := inspectContainer(c.id)
+	c.name = name
+	c.port = 5432
+	c.userName = PostgresUsername
+	c.password = PostgresPassword
+	c.volume = volume
+	return c
 }
 
-// sqlExecRetry keeps calling http://golang.org/pkg/database/sql/#DB.Exec on db
-// with stmt until it succeeds or until it has been tried maxTry times.
-// It sleeps in between tries, twice longer after each new try, starting with
-// 100 milliseconds.
+// sqlExecRetry to check the connection
 func sqlExecRetry(db *sql.DB, stmt string, maxTry int) (sql.Result, error) {
 	if maxTry <= 0 {
 		return nil, errors.New("did not try at all")

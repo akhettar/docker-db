@@ -22,6 +22,10 @@ jobs:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
 
+    - name: Run the tests
+        run:
+          go test
+
     - name: Bump version and push tag
       uses: anothrNick/github-tag-action@1.17.2
       env:
@@ -32,6 +36,6 @@ jobs:
       run: |
         git pull
         export latest="$(git describe --tags `git rev-list --tags --max-count=1`)"
-        curl https://proxy.golang.org/github.com/akhettar/docker-test/@v/$latest.info
+        curl https://proxy.golang.org/github.com/akhettar/docker-db/@v/$latest.info
 
 
