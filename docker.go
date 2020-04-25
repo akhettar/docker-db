@@ -224,8 +224,12 @@ func StartMongoContainer() Container {
 		return run("-d", "-p", "27017:27017", "--name", name, mongoImage)
 	})
 	time.Sleep(time.Second * 5)
+
+	_, volume, _ := inspectContainer(c.id)
+
 	c.name = name
 	c.port = 27017
+	c.volume = volume
 	return c
 }
 
