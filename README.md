@@ -61,7 +61,7 @@ import (
 	"github.com/akhettar/app-features-manager/repository"
 	"context"
 	"flag"
-	dockertdb "github.com/akhettar/docker-db"
+	"github.com/akhettar/docker-db"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
@@ -85,7 +85,7 @@ var (
 // installed on the server on which this test will be running) and shuts it down.
 func TestMain(m *testing.M) {
 
-	container := dockertest.StartMongoContainer()
+	container := dbtest.StartMongoContainer()
 	log.Printf("running mongo with Ip %s", container.Host())
 
 	uri := fmt.Sprintf("mongodb://%s:%d", container.Host(), container.Port())
