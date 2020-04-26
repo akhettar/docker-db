@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -233,17 +234,23 @@ func StartMongoContainer() Container {
 	return c
 }
 
+// StartPostgresContainerWithInitialisationScript start a postgres container with an initialisation script.
 func StartPostgresContainerWithInitialisationScript(dbname, schema string) Container {
+	file, err := filepath.Abs(schema)
+	if err != nil {
+		log.Fatalf("failed to load the schema file %s", schema)
+	}
 	name := fmt.Sprintf("%s_%s", postgresImage, "container")
 	port := 5432
 	return startPostgres(dbname, port, func() (s string, e error) {
 		return run("-d", "--name", name, "-e", "POSTGRES_PASSWORD="+PostgresPassword,
 			"-e", "POSTGRES_USER="+PostgresUsername, "-e", "POSTGRES_DB="+dbname,
-			"-v", fmt.Sprintf("%s:/docker-entrypoint-initdb.d/initialise_db.sql", schema),
+			"-v", fmt.Sprintf("%s:/docker-entrypoint-initdb.d/initialise_db.sql", file),
 			"-p", fmt.Sprintf("%d:%d", port, port), postgresImage)
 	})
 }
 
+// StartPostgresContainer starts a postgres container
 func StartPostgresContainer(dbname string) Container {
 	name := fmt.Sprintf("%s_%s", postgresImage, "container")
 	port := 5432

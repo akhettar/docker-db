@@ -16,7 +16,7 @@ type Entries struct {
 func Test_StartPostgresConnection(t *testing.T) {
 
 	// db should have been initialised by init_test.go
-	rows, err := db.Query("select * from shop;")
+	rows, err := DB.Query("select * from shop;")
 
 	// Get column names
 	columns, err := rows.Columns()

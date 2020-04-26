@@ -2,31 +2,31 @@ package dockertest
 
 import (
 	"database/sql"
-	"flag"
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"testing"
 )
 
-var db *sql.DB
+var (
+	DB  *sql.DB
+	err error
+)
 
 // Test Fixture start the DB container and run the test suite
 func TestMain(m *testing.M) {
 
-	flag.Parse()
-
-	schema, err := filepath.Abs("initialise_db.sql")
-	if err != nil {
-		log.Println("Running postgres without the initialisation script")
-	}
-
 	// Start container
-	c := StartPostgresContainerWithInitialisationScript("test", schema)
+	c := StartPostgresContainerWithInitialisationScript("test", "initialise_db.sql")
+
+	// open connection
 	connStr := fmt.Sprintf("postgres://%s:%s@%s/test?sslmode=disable", c.userName, c.password, c.host)
-	db, err = sql.Open("postgres", connStr)
-	defer db.Close()
+	DB, err = sql.Open("postgres", connStr)
+
+	if err != nil {
+		log.Fatal("failed to open a connection")
+	}
+	defer DB.Close()
 
 	// Run the test suite
 	retCode := m.Run()

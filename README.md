@@ -85,7 +85,6 @@ var (
 // installed on the server on which this test will be running) and shuts it down.
 func TestMain(m *testing.M) {
 
-	flag.Parse()
 	container := dockertest.StartMongoContainer()
 	log.Printf("running mongo with Ip %s", container.Host())
 
