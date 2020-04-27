@@ -1,3 +1,13 @@
+// Copyright 2020 Ayache Khettar. All rights reserved.
+// Use of this source file is governed by MIT license
+// license that can be found in LICENSE file.
+
+// Package dbtest provides a way of starting a MongoDB or Postgres docker
+// container prior to running the integration test suite.
+// This packages manages the life cycle of the of this docker container
+// it fires off the container, kill the container and remove its volume
+// after the test suite is completed.
+
 package dbtest
 
 import (
@@ -23,6 +33,7 @@ const (
 	VolumeRegex      = "(volumes\\/)(.*)(\\/)"
 )
 
+// Container holding the docker container info
 type Container struct {
 	name     string
 	id       string
@@ -38,17 +49,17 @@ func (c Container) Host() string {
 	return c.host
 }
 
-// Port
+// Port on which the container is running on
 func (c Container) Port() int {
 	return c.port
 }
 
-// Username DB
+// Username is the user name database
 func (c Container) Username() string {
 	return c.userName
 }
 
-// Password DB
+// Password is the database password
 func (c Container) Password() string {
 	return c.password
 }
@@ -58,7 +69,7 @@ func kill(name string) error {
 	return exec.Command("docker", "kill", name).Run()
 }
 
-// Remove runs "docker rm" on the container
+// remove the container after the test is completed
 func remove(name string) error {
 	return exec.Command("docker", "rm", name).Run()
 }
